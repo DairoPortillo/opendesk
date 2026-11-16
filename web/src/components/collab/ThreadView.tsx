@@ -71,6 +71,7 @@ import { MailMessageItem } from "./MailMessageItem";
 import { PersonPanel } from "./PersonPanel";
 import { AssignPicker, LabelsPicker, MovePicker, type MoveTarget } from "./pickers";
 import { ShareDialog } from "./ShareDialog";
+import { SnoozeUnavailable } from "./SnoozeUnavailable";
 import { SnoozeMenu } from "@/components/tickets/detail/SnoozeMenu";
 import { weekdayClock } from "@/lib/format";
 
@@ -535,13 +536,20 @@ export const ThreadView = forwardRef<ThreadViewHandle, ThreadViewProps>(function
             <HeaderButton label={th.unread ? t("action.read") : t("action.unread")} shortcut={th.unread ? "shift i" : "shift u"} onClick={() => onAction(th.unread ? "read" : "unread", { silent: true })}>
               {th.unread ? <MailOpen /> : <Mail />}
             </HeaderButton>
-            {account?.handling_enabled && (
+            {!account?.handling_enabled ? (
+              // Always in view, so it is found where Gmail and Outlook keep it, and says why it is off (GH#532).
+              <SnoozeUnavailable accounts={account ? [account] : []} />
+            ) : (
               <>
                 <HeaderButton label={th.needs_action ? t("action.done") : t("action.needsAction")} pressed={!th.needs_action} onClick={() => onAction(th.needs_action ? "done" : "needs_action", { silent: true })}>
                   <Check />
                 </HeaderButton>
                 {/* The ticket snooze picker, as is (contracts/collab.md "Snooze"). */}
-                <SnoozeMenu onSnooze={(at) => onAction("snooze", { until: at.toISOString() })} />
+                <SnoozeMenu
+                  onSnooze={(at) => onAction("snooze", { until: at.toISOString() })}
+                  // Gmail's own snooze reaches us as an archive (GH#533): say so where it matters.
+                  note={account.provider === "google" ? t("action.snoozeGmailNote") : undefined}
+                />
                 {th.snoozed_until && (
                   <span className="mono ml-1 hidden whitespace-nowrap text-[11px] text-fg-4 sm:inline" title={t("thread.snoozedUntil", { when: weekdayClock(new Date(th.snoozed_until)) })}>
                     {weekdayClock(new Date(th.snoozed_until))}
